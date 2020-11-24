@@ -7,6 +7,9 @@ pub use sqr::*;
 mod rand_norm;
 pub use rand_norm::*;
 
+mod zero;
+pub use zero::*;
+
 mod one;
 pub use one::*;
 

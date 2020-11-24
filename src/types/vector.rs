@@ -3,10 +3,10 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::iter::Sum;
 use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign,
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign, Neg,
 };
 
-use crate::{init_array, Sqrt};
+use crate::{init_array, Sqrt, Zero, One, Two};
 
 #[repr(C)]
 pub struct Vector<T: Sized, const N: usize> {
@@ -289,7 +289,67 @@ where
     T: Default,
 {
     fn default() -> Self {
-        Vector::new(init_array!([T; N], |_| Default::default()))
+        Vector::new(init_array!([T; N], |_| T::default()))
+    }
+}
+
+impl<T: Sized, const N: usize> Zero for Vector<T, N>
+where
+    T: Zero,
+{
+    fn zero() -> Self {
+        Vector::new(init_array!([T; N], |_| T::zero()))
+    }
+}
+
+impl<T: Sized, const N: usize> One for Vector<T, N>
+where
+    T: One,
+{
+    fn one() -> Self {
+        Vector::new(init_array!([T; N], |_| T::one()))
+    }
+}
+
+impl<T: Sized, const N: usize> Two for Vector<T, N>
+where
+    T: Two,
+{
+    fn two() -> Self {
+        Vector::new(init_array!([T; N], |_| T::two()))
+    }
+}
+
+impl<T: Sized, const N: usize> Neg for Vector<T, N>
+where
+    T: Neg + Clone,
+{
+    type Output = Vector<<T as Neg>::Output, N>;
+
+    fn neg(self) -> Vector<<T as Neg>::Output, N> {
+        Vector::new(init_array!([<T as Neg>::Output; N], |idx| -self[idx].clone()))
+    }
+}
+
+impl<T: Sized, const N: usize> Neg for &Vector<T, N>
+where
+    T: Neg + Clone,
+{
+    type Output = Vector<<T as Neg>::Output, N>;
+
+    fn neg(self) -> Vector<<T as Neg>::Output, N> {
+        Vector::new(init_array!([<T as Neg>::Output; N], |idx| -self[idx].clone()))
+    }
+}
+
+impl<T: Sized, const N: usize> Neg for &mut Vector<T, N>
+where
+    T: Neg + Clone,
+{
+    type Output = Vector<<T as Neg>::Output, N>;
+
+    fn neg(self) -> Vector<<T as Neg>::Output, N> {
+        Vector::new(init_array!([<T as Neg>::Output; N], |idx| -self[idx].clone()))
     }
 }
 
@@ -310,6 +370,19 @@ impl<T: Sized, const N: usize> IndexMut<usize> for Vector<T, N> {
 macro_rules! vector_binary_op {
     ($op:ident, $fn_name:ident, $type_method_component:ident, $type_method:ident) => {
         impl<'a, 'b, T: Sized, const N: usize> $op<&'b Vector<T, N>> for &'a Vector<T, N>
+        where
+            T: $op<T, Output = T> + Clone,
+            Vector<T, N>: Clone,
+        {
+            type Output = Vector<T, N>;
+
+            fn $fn_name(self, rhs: &'b Vector<T, N>) -> Vector<T, N> {
+                let mut new = self.clone();
+                new.$type_method(rhs);
+                new
+            }
+        }
+        impl<'a, 'b, T: Sized, const N: usize> $op<&'b Vector<T, N>> for &'a mut Vector<T, N>
         where
             T: $op<T, Output = T> + Clone,
             Vector<T, N>: Clone,
@@ -351,6 +424,20 @@ macro_rules! vector_binary_op {
             }
         }
 
+        impl<'a, T: Sized, const N: usize> $op<Vector<T, N>> for &'a mut Vector<T, N>
+        where
+            T: $op<T, Output = T> + Clone,
+            Vector<T, N>: Clone,
+        {
+            type Output = Vector<T, N>;
+
+            fn $fn_name(self, rhs: Vector<T, N>) -> Vector<T, N> {
+                let mut new = self.clone();
+                new.$type_method(&rhs);
+                new
+            }
+        }
+
         impl<T: Sized, const N: usize> $op<Vector<T, N>> for Vector<T, N>
         where
             T: $op<T, Output = T> + Clone,
@@ -379,6 +466,20 @@ macro_rules! vector_binary_op {
             }
         }
 
+        impl<'a, 'b, T: Sized, const N: usize> $op<&'b T> for &'a mut Vector<T, N>
+        where
+            T: $op<T, Output = T> + Clone,
+            Vector<T, N>: Clone,
+        {
+            type Output = Vector<T, N>;
+
+            fn $fn_name(self, rhs: &'b T) -> Vector<T, N> {
+                let mut new = self.clone();
+                new.$type_method_component(rhs);
+                new
+            }
+        }
+
         impl<'a, T: Sized, const N: usize> $op<&'a T> for Vector<T, N>
         where
             T: $op<T, Output = T> + Clone,
@@ -394,6 +495,20 @@ macro_rules! vector_binary_op {
         }
 
         impl<'a, T: Sized, const N: usize> $op<T> for &'a Vector<T, N>
+        where
+            T: $op<T, Output = T> + Clone,
+            Vector<T, N>: Clone,
+        {
+            type Output = Vector<T, N>;
+
+            fn $fn_name(self, rhs: T) -> Vector<T, N> {
+                let mut new = self.clone();
+                new.$type_method_component(&rhs);
+                new
+            }
+        }
+
+        impl<'a, T: Sized, const N: usize> $op<T> for &'a mut Vector<T, N>
         where
             T: $op<T, Output = T> + Clone,
             Vector<T, N>: Clone,
@@ -493,6 +608,10 @@ pub trait VectorXYZ<T> {
     fn y_mut(&mut self) -> &mut T;
     fn z(&self) -> &T;
     fn z_mut(&mut self) -> &mut T;
+    fn xy(&self) -> Vector<T, 2>
+        where T: Clone;
+    fn yz(&self) -> Vector<T, 2>
+        where T: Clone;
 
     fn cross(&self, other: &Self) -> Vector<T, 3>
         where T: Mul<T, Output = T> + Sub<T, Output = T> + Clone
@@ -514,6 +633,16 @@ pub trait VectorXYZW<T> {
     fn z_mut(&mut self) -> &mut T;
     fn w(&self) -> &T;
     fn w_mut(&mut self) -> &mut T;
+    fn xy(&self) -> Vector<T, 2>
+        where T: Clone;
+    fn yz(&self) -> Vector<T, 2>
+        where T: Clone;
+    fn zw(&self) -> Vector<T, 2>
+        where T: Clone;
+    fn xyz(&self) -> Vector<T, 3>
+        where T: Clone;
+    fn yzw(&self) -> Vector<T, 3>
+        where T: Clone;
 }
 
 impl<T> VectorX<T> for Vector<T, 1> {
@@ -559,6 +688,16 @@ impl<T> VectorXYZ<T> for Vector<T, 3> {
     fn z_mut(&mut self) -> &mut T {
         &mut self.components[2]
     }
+    fn xy(&self) -> Vector<T, 2>
+        where T: Clone
+    {
+        vector!(self.x().clone(), self.y().clone())
+    }
+    fn yz(&self) -> Vector<T, 2>
+        where T: Clone
+    {
+        vector!(self.y().clone(), self.z().clone())
+    }
 }
 
 impl<T> VectorXYZW<T> for Vector<T, 4> {
@@ -585,5 +724,30 @@ impl<T> VectorXYZW<T> for Vector<T, 4> {
     }
     fn w_mut(&mut self) -> &mut T {
         &mut self.components[3]
+    }
+    fn xy(&self) -> Vector<T, 2>
+        where T: Clone
+    {
+        vector!(self.x().clone(), self.y().clone())
+    }
+    fn yz(&self) -> Vector<T, 2>
+        where T: Clone
+    {
+        vector!(self.y().clone(), self.z().clone())
+    }
+    fn zw(&self) -> Vector<T, 2>
+        where T: Clone
+    {
+        vector!(self.z().clone(), self.w().clone())
+    }
+    fn xyz(&self) -> Vector<T, 3>
+        where T: Clone
+    {
+        vector!(self.x().clone(), self.y().clone(), self.z().clone())
+    }
+    fn yzw(&self) -> Vector<T, 3>
+        where T: Clone
+    {
+        vector!(self.y().clone(), self.z().clone(), self.w().clone())
     }
 }
