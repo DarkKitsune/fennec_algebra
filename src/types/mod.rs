@@ -9,3 +9,9 @@ pub use matrix::*;
 
 mod quaternion;
 pub use quaternion::*;
+
+mod gaussian;
+pub use gaussian::*;
+
+mod rand;
+pub use rand::*;

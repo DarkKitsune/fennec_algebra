@@ -205,7 +205,7 @@ impl<T: Sized, const N: usize> Vector<T, N> {
             .sum()
     }
 
-    pub fn into<T2: Sized>(&self) -> Vector<T2, N>
+    pub fn convert<T2: Sized>(&self) -> Vector<T2, N>
     where
         T: Into<T2> + Clone,
     {

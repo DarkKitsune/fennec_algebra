@@ -37,20 +37,20 @@ impl Quaternion {
         )
     }
 
-    pub fn x(&self) -> &f32 {
-        self.components.x()
+    pub fn x(&self) -> f32 {
+        *self.components.x()
     }
 
-    pub fn y(&self) -> &f32 {
-        self.components.y()
+    pub fn y(&self) -> f32 {
+        *self.components.y()
     }
 
-    pub fn z(&self) -> &f32 {
-        self.components.z()
+    pub fn z(&self) -> f32 {
+        *self.components.z()
     }
 
-    pub fn w(&self) -> &f32 {
-        self.components.w()
+    pub fn w(&self) -> f32 {
+        *self.components.w()
     }
 
     pub fn xyz(&self) -> Vector<f32, 3> {
@@ -112,7 +112,7 @@ impl Quaternion {
     }
 
     pub fn axis_angle(&self) -> (Vector<f32, 3>, f32) {
-        let norm = if *self.w() > 1.0 {
+        let norm = if self.w() > 1.0 {
             self.normalized().unwrap()
         } else {
             *self
@@ -127,7 +127,7 @@ impl Quaternion {
     }
 
     pub fn conjugate(&self) -> Self {
-        Quaternion::from_vec(vector!(0.0, 0.0, 0.0) - self.xyz(), *self.w())
+        Quaternion::from_vec(vector!(0.0, 0.0, 0.0) - self.xyz(), self.w())
     }
 }
 
@@ -167,7 +167,14 @@ impl std::ops::Mul<Self> for Quaternion {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        Self::from_vec4(self.xyzw() * other.xyzw())
+        let cross = self.xyz().cross(&other.xyz());
+        let dot = self.xyz().dot(&other.xyz());
+        Self::new(
+            self.x() * other.w() + other.x() * self.w() + cross.x(),
+            self.y() * other.w() + other.y() * self.w() + cross.y(),
+            self.z() * other.w() + other.z() * self.w() + cross.z(),
+            self.w() * other.w() - dot,
+        )
     }
 }
 
