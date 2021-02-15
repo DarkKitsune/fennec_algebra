@@ -10,22 +10,22 @@ impl IsFalse for ConstAssert<false> {}*/
 macro_rules! init_array {
     ([$value_type:ty; $count:expr], mut $value_fn:expr) => {{
         use std::mem::MaybeUninit;
+        let mut func = $value_fn;
         let mut array: MaybeUninit<[$value_type; $count]> = MaybeUninit::uninit();
-        let mut closure = $value_fn;
         unsafe {
             for idx in 0..$count {
-                *(array.as_mut_ptr() as *mut $value_type).add(idx) = closure(idx);
+                (array.as_mut_ptr() as *mut $value_type).add(idx).write(func(idx));
             }
             array.assume_init()
         }
     }};
     ([$value_type:ty; $count:expr], $value_fn:expr) => {{
         use std::mem::MaybeUninit;
+        let func = $value_fn;
         let mut array: MaybeUninit<[$value_type; $count]> = MaybeUninit::uninit();
-        let closure = $value_fn;
         unsafe {
             for idx in 0..$count {
-                *(array.as_mut_ptr() as *mut $value_type).add(idx) = closure(idx);
+                (array.as_mut_ptr() as *mut $value_type).add(idx).write(func(idx));
             }
             array.assume_init()
         }

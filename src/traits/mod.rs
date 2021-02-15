@@ -21,3 +21,6 @@ pub use abs::*;
 
 mod dot;
 pub use dot::*;
+
+mod seed;
+pub use seed::*;

@@ -15,3 +15,6 @@ pub use gaussian::*;
 
 mod rand;
 pub use rand::*;
+
+mod val_rand;
+pub use val_rand::*;

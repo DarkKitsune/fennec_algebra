@@ -110,7 +110,7 @@ mod tests {
             assert_eq!(multiplied.position().unwrap(), vector!(3.0, 4.0, 7.0));
         }
     }
-
+/*
     mod nnet {
         use crate::NNet;
 
@@ -151,5 +151,5 @@ mod tests {
 
         #[test]
         fn nnet_train() {}
-    }
+    }*/
 }
