@@ -109,8 +109,30 @@ mod tests {
             // Test
             assert_eq!(multiplied.position().unwrap(), vector!(3.0, 4.0, 7.0));
         }
+
+        #[test]
+        fn matrix_transpose() {
+            // We need to convert a 3x4 matrix to a 4x4 matrix and transpose it
+            let matrix = Matrix::<f32, 4, 4>::from_smaller_array_array(&[
+                [1.0, 2.0, 3.0],
+                [4.0, 5.0, 6.0],
+                [7.0, 8.0, 9.0],
+                [10.0, 11.0, 12.0],
+            ])
+            .unwrap();
+            let matrix = matrix.transposed().unwrap();
+            assert_eq!(
+                matrix,
+                Matrix::from_array_array(&[
+                    [1.0, 4.0, 7.0, 10.0],
+                    [2.0, 5.0, 8.0, 11.0],
+                    [3.0, 6.0, 9.0, 12.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ])
+            );
+        }
     }
-/*
+    /*
     mod nnet {
         use crate::NNet;
 

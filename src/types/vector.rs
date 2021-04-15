@@ -3,10 +3,11 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::iter::Sum;
 use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign, Neg,
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+    SubAssign,
 };
 
-use crate::{init_array, Sqrt, Zero, One, Two};
+use crate::{init_array, One, Sqrt, Two, Zero};
 
 #[repr(C)]
 pub struct Vector<T: Sized, const N: usize> {
@@ -609,12 +610,15 @@ pub trait VectorXYZ<T> {
     fn z(&self) -> &T;
     fn z_mut(&mut self) -> &mut T;
     fn xy(&self) -> Vector<T, 2>
-        where T: Clone;
+    where
+        T: Clone;
     fn yz(&self) -> Vector<T, 2>
-        where T: Clone;
+    where
+        T: Clone;
 
     fn cross(&self, other: &Self) -> Vector<T, 3>
-        where T: Mul<T, Output = T> + Sub<T, Output = T> + Clone
+    where
+        T: Mul<T, Output = T> + Sub<T, Output = T> + Clone,
     {
         vector!(
             self.y().clone() * other.z().clone() - self.z().clone() * other.y().clone(),
@@ -622,6 +626,30 @@ pub trait VectorXYZ<T> {
             self.x().clone() * other.y().clone() - self.y().clone() * other.x().clone()
         )
     }
+
+    fn right(forward: Self, up: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>;
+
+    fn up(right: Self, forward: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>;
+
+    fn forward(up: Self, right: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>;
 }
 
 pub trait VectorXYZW<T> {
@@ -634,15 +662,20 @@ pub trait VectorXYZW<T> {
     fn w(&self) -> &T;
     fn w_mut(&mut self) -> &mut T;
     fn xy(&self) -> Vector<T, 2>
-        where T: Clone;
+    where
+        T: Clone;
     fn yz(&self) -> Vector<T, 2>
-        where T: Clone;
+    where
+        T: Clone;
     fn zw(&self) -> Vector<T, 2>
-        where T: Clone;
+    where
+        T: Clone;
     fn xyz(&self) -> Vector<T, 3>
-        where T: Clone;
+    where
+        T: Clone;
     fn yzw(&self) -> Vector<T, 3>
-        where T: Clone;
+    where
+        T: Clone;
 }
 
 impl<T> VectorX<T> for Vector<T, 1> {
@@ -689,14 +722,49 @@ impl<T> VectorXYZ<T> for Vector<T, 3> {
         &mut self.components[2]
     }
     fn xy(&self) -> Vector<T, 2>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.x().clone(), self.y().clone())
     }
     fn yz(&self) -> Vector<T, 2>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.y().clone(), self.z().clone())
+    }
+
+    fn right(forward: Self, up: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>,
+    {
+        Ok(forward.normalized()?.cross(&up.normalized()?))
+    }
+
+    fn up(right: Self, forward: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>,
+    {
+        Ok(right.normalized()?.cross(&forward.normalized()?))
+    }
+
+    fn forward(up: Self, right: Self) -> Result<Self, VectorError>
+    where
+        Self: Sized,
+        T: Add<T, Output = T> + Sqrt<Output = T> + Clone,
+        T: Mul<T, Output = T>,
+        T: Div<T, Output = T>,
+        T: Sub<T, Output = T>,
+    {
+        Ok(up.normalized()?.cross(&right.normalized()?))
     }
 }
 
@@ -726,27 +794,32 @@ impl<T> VectorXYZW<T> for Vector<T, 4> {
         &mut self.components[3]
     }
     fn xy(&self) -> Vector<T, 2>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.x().clone(), self.y().clone())
     }
     fn yz(&self) -> Vector<T, 2>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.y().clone(), self.z().clone())
     }
     fn zw(&self) -> Vector<T, 2>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.z().clone(), self.w().clone())
     }
     fn xyz(&self) -> Vector<T, 3>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.x().clone(), self.y().clone(), self.z().clone())
     }
     fn yzw(&self) -> Vector<T, 3>
-        where T: Clone
+    where
+        T: Clone,
     {
         vector!(self.y().clone(), self.z().clone(), self.w().clone())
     }

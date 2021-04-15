@@ -14,7 +14,9 @@ macro_rules! init_array {
         let mut array: MaybeUninit<[$value_type; $count]> = MaybeUninit::uninit();
         unsafe {
             for idx in 0..$count {
-                (array.as_mut_ptr() as *mut $value_type).add(idx).write(func(idx));
+                (array.as_mut_ptr() as *mut $value_type)
+                    .add(idx)
+                    .write(func(idx));
             }
             array.assume_init()
         }
@@ -25,7 +27,9 @@ macro_rules! init_array {
         let mut array: MaybeUninit<[$value_type; $count]> = MaybeUninit::uninit();
         unsafe {
             for idx in 0..$count {
-                (array.as_mut_ptr() as *mut $value_type).add(idx).write(func(idx));
+                (array.as_mut_ptr() as *mut $value_type)
+                    .add(idx)
+                    .write(func(idx));
             }
             array.assume_init()
         }

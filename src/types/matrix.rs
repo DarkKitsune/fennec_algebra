@@ -18,7 +18,7 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         Self::new(columns)
     }
 
-    pub fn from_array_array(columns: [[T; ROWS]; COLUMNS]) -> Self
+    pub fn from_array_array(columns: &[[T; ROWS]; COLUMNS]) -> Self
     where
         T: Clone,
     {
@@ -26,6 +26,45 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
             let column: &[T; ROWS] = &columns[idx];
             Vector::new(column.clone())
         }))
+    }
+
+    pub fn from_smaller_array_array<const R: usize, const C: usize>(
+        columns: &[[T; R]; C],
+    ) -> Result<Self, MatrixError>
+    where
+        T: Clone + Zero + One,
+    {
+        if R > ROWS {
+            return Err(MatrixError::TooFewRows);
+        }
+        if C > COLUMNS {
+            return Err(MatrixError::TooFewColumns);
+        }
+        Ok(Self::from_array(init_array!(
+            [Vector<T, ROWS>; COLUMNS],
+            |idx| {
+                if idx < C {
+                    let column: &[T; R] = &columns[idx];
+                    let new_column = init_array!([T; ROWS], |r_idx| if r_idx < R {
+                        let v: &T = &column[r_idx];
+                        v.clone()
+                    } else {
+                        if r_idx == idx {
+                            T::one()
+                        } else {
+                            T::zero()
+                        }
+                    });
+                    Vector::new(new_column)
+                } else {
+                    Vector::new(init_array!([T; ROWS], |r_idx| if r_idx == idx {
+                        T::one()
+                    } else {
+                        T::zero()
+                    }))
+                }
+            }
+        )))
     }
 
     pub fn new_scale(scale: Vector<T, 3>) -> Result<Self, MatrixError>
@@ -139,21 +178,17 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         self.columns -= &other.columns;
     }
 
-    pub fn mul_matrix(&mut self, other: &Self) -> Result<(), MatrixError>
+    pub fn mul_matrix(&self, other: &Matrix<T, ROWS, COLUMNS>) -> Matrix<T, ROWS, COLUMNS>
     where
         T: Mul<T, Output = T> + Clone + Sum,
     {
-        if ROWS != COLUMNS {
-            return Err(MatrixError::NotSquare);
-        }
-        let columns = Vector::new(init_array!([Vector<T, ROWS>; COLUMNS], |column_idx| {
-            Vector::new(init_array!([T; ROWS], |row_idx| {
-                let row = other._row_with_column_size(row_idx);
-                self.columns[column_idx].dot(&row)
+        let columns = Vector::new(init_array!([Vector<T, COLUMNS>; ROWS], |row_idx| {
+            Vector::new(init_array!([T; COLUMNS], |column_idx| {
+                let column = other.row(column_idx);
+                self.column(row_idx).dot(&column)
             }))
         }));
-        self.columns = columns;
-        Ok(())
+        Matrix::new(columns)
     }
 
     pub fn div_matrix(&mut self, other: &Self)
@@ -250,7 +285,7 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         ))
     }
 
-    pub fn set_x_to_world(&mut self, position: Vector<T, 3>) -> Result<(), MatrixError>
+    pub fn set_x(&mut self, x: Vector<T, 3>) -> Result<(), MatrixError>
     where
         T: Clone,
     {
@@ -258,9 +293,9 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
             return Err(MatrixError::TooFewRows);
         }
         let column = self.column_mut(0);
-        column[0] = position[0].clone();
-        column[1] = position[1].clone();
-        column[2] = position[2].clone();
+        column[0] = x[0].clone();
+        column[1] = x[1].clone();
+        column[2] = x[2].clone();
         Ok(())
     }
 
@@ -279,7 +314,7 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         ))
     }
 
-    pub fn set_y(&mut self, position: Vector<T, 3>) -> Result<(), MatrixError>
+    pub fn set_y(&mut self, y: Vector<T, 3>) -> Result<(), MatrixError>
     where
         T: Clone,
     {
@@ -287,9 +322,9 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
             return Err(MatrixError::TooFewRows);
         }
         let column = self.column_mut(1);
-        column[0] = position[0].clone();
-        column[1] = position[1].clone();
-        column[2] = position[2].clone();
+        column[0] = y[0].clone();
+        column[1] = y[1].clone();
+        column[2] = y[2].clone();
         Ok(())
     }
 
@@ -308,7 +343,7 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         ))
     }
 
-    pub fn set_z(&mut self, position: Vector<T, 3>) -> Result<(), MatrixError>
+    pub fn set_z(&mut self, z: Vector<T, 3>) -> Result<(), MatrixError>
     where
         T: Clone,
     {
@@ -316,9 +351,9 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
             return Err(MatrixError::TooFewRows);
         }
         let column = self.column_mut(2);
-        column[0] = position[0].clone();
-        column[1] = position[1].clone();
-        column[2] = position[2].clone();
+        column[0] = z[0].clone();
+        column[1] = z[1].clone();
+        column[2] = z[2].clone();
         Ok(())
     }
 
@@ -337,7 +372,32 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         ))
     }
 
-    pub fn into<T2: Sized>(&self) -> Matrix<T2, COLUMNS, ROWS>
+    pub fn transform_point(&self, point: Vector<T, 3>) -> Result<Vector<T, 3>, MatrixError>
+    where
+        T: Mul<T, Output = T> + Clone + Sum + Default + One,
+    {
+        let mut a = self.clone();
+        let b = Matrix::new_position(point)?;
+        Ok(a.mul_matrix(&b).position()?)
+    }
+
+    pub fn transposed(&self) -> Result<Self, MatrixError>
+    where
+        T: Clone,
+    {
+        if ROWS < COLUMNS {
+            return Err(MatrixError::TooFewRows);
+        }
+        if COLUMNS < ROWS {
+            return Err(MatrixError::TooFewColumns);
+        }
+        Ok(Self::from_array_array(&init_array!(
+            [[T; ROWS]; COLUMNS],
+            |c_idx| init_array!([T; ROWS], |r_idx| self.columns[r_idx][c_idx].clone())
+        )))
+    }
+
+    pub fn convert<T2: Sized>(&self) -> Matrix<T2, COLUMNS, ROWS>
     where
         T: Into<T2> + Clone,
     {
@@ -408,71 +468,59 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> IndexMut<usize>
 }
 
 macro_rules! matrix_binary_op_mul {
-    ($op:ident, $fn_name:ident, $type_method_component:ident, $type_method:ident) => {
+    ($op:ident, $fn_name:ident, $type_method:ident) => {
         impl<'a, 'b, T: Sized, const COLUMNS: usize, const ROWS: usize>
-            $op<&'b Matrix<T, COLUMNS, ROWS>> for &'a Matrix<T, COLUMNS, ROWS>
+            $op<&'b Matrix<T, ROWS, COLUMNS>> for &'a Matrix<T, COLUMNS, ROWS>
         where
             T: $op<T, Output = T> + Clone + Sum,
-            Matrix<T, COLUMNS, ROWS>: Clone,
         {
-            type Output = Matrix<T, COLUMNS, ROWS>;
+            type Output = Matrix<T, ROWS, COLUMNS>;
 
-            fn $fn_name(self, rhs: &'b Matrix<T, COLUMNS, ROWS>) -> Matrix<T, COLUMNS, ROWS> {
-                let mut new = self.clone();
-                new.$type_method(rhs).unwrap();
-                new
+            fn $fn_name(self, rhs: &'b Matrix<T, ROWS, COLUMNS>) -> Matrix<T, ROWS, COLUMNS> {
+                self.$type_method(rhs)
             }
         }
 
         impl<'a, T: Sized, const COLUMNS: usize, const ROWS: usize>
-            $op<&'a Matrix<T, COLUMNS, ROWS>> for Matrix<T, COLUMNS, ROWS>
+            $op<&'a Matrix<T, ROWS, COLUMNS>> for Matrix<T, COLUMNS, ROWS>
         where
             T: $op<T, Output = T> + Clone + Sum,
-            Matrix<T, COLUMNS, ROWS>: Clone,
         {
-            type Output = Matrix<T, COLUMNS, ROWS>;
+            type Output = Matrix<T, ROWS, COLUMNS>;
 
-            fn $fn_name(self, rhs: &'a Matrix<T, COLUMNS, ROWS>) -> Matrix<T, COLUMNS, ROWS> {
-                let mut new = self.clone();
-                new.$type_method(rhs).unwrap();
-                new
+            fn $fn_name(self, rhs: &'a Matrix<T, ROWS, COLUMNS>) -> Matrix<T, ROWS, COLUMNS> {
+                self.$type_method(rhs)
             }
         }
 
-        impl<'a, T: Sized, const COLUMNS: usize, const ROWS: usize> $op<Matrix<T, COLUMNS, ROWS>>
+        impl<'a, T: Sized, const COLUMNS: usize, const ROWS: usize> $op<Matrix<T, ROWS, COLUMNS>>
             for &'a Matrix<T, COLUMNS, ROWS>
         where
             T: $op<T, Output = T> + Clone + Sum,
-            Matrix<T, COLUMNS, ROWS>: Clone,
         {
-            type Output = Matrix<T, COLUMNS, ROWS>;
+            type Output = Matrix<T, ROWS, COLUMNS>;
 
-            fn $fn_name(self, rhs: Matrix<T, COLUMNS, ROWS>) -> Matrix<T, COLUMNS, ROWS> {
-                let mut new = self.clone();
-                new.$type_method(&rhs).unwrap();
-                new
+            fn $fn_name(self, rhs: Matrix<T, ROWS, COLUMNS>) -> Matrix<T, ROWS, COLUMNS> {
+                self.$type_method(&rhs)
             }
         }
 
-        impl<T: Sized, const COLUMNS: usize, const ROWS: usize> $op<Matrix<T, COLUMNS, ROWS>>
+        impl<T: Sized, const COLUMNS: usize, const ROWS: usize> $op<Matrix<T, ROWS, COLUMNS>>
             for Matrix<T, COLUMNS, ROWS>
         where
             T: $op<T, Output = T> + Clone + Sum,
-            Matrix<T, COLUMNS, ROWS>: Clone,
         {
-            type Output = Matrix<T, COLUMNS, ROWS>;
+            type Output = Matrix<T, ROWS, COLUMNS>;
 
-            fn $fn_name(self, rhs: Matrix<T, COLUMNS, ROWS>) -> Matrix<T, COLUMNS, ROWS> {
-                let mut new = self.clone();
-                new.$type_method(&rhs).unwrap();
-                new
+            fn $fn_name(self, rhs: Matrix<T, ROWS, COLUMNS>) -> Matrix<T, ROWS, COLUMNS> {
+                self.$type_method(&rhs)
             }
         }
     };
 }
 
 macro_rules! matrix_binary_op {
-    ($op:ident, $fn_name:ident, $type_method_component:ident, $type_method:ident) => {
+    ($op:ident, $fn_name:ident, $type_method:ident) => {
         impl<'a, 'b, T: Sized, const COLUMNS: usize, const ROWS: usize>
             $op<&'b Matrix<T, COLUMNS, ROWS>> for &'a Matrix<T, COLUMNS, ROWS>
         where
@@ -535,23 +583,18 @@ macro_rules! matrix_binary_op {
     };
 }
 
-matrix_binary_op!(Add, add, add_component, add_matrix);
-matrix_binary_op!(Sub, sub, sub_component, sub_matrix);
-matrix_binary_op_mul!(Mul, mul, mul_component, mul_matrix);
-matrix_binary_op!(Div, div, div_component, div_matrix);
-matrix_binary_op!(Rem, rem, rem_component, rem_matrix);
+matrix_binary_op!(Add, add, add_matrix);
+matrix_binary_op!(Sub, sub, sub_matrix);
+matrix_binary_op_mul!(Mul, mul, mul_matrix);
+matrix_binary_op!(Div, div, div_matrix);
+matrix_binary_op!(Rem, rem, rem_matrix);
 
 pub trait TransformMatrix<T>: Sized {
     fn new_rotation(quat: &Quaternion) -> Result<Self, MatrixError>;
     fn new_rotation_on_axis(axis: Vector<T, 3>, radians: T) -> Result<Self, MatrixError>;
     fn view(from: Vector<T, 3>, to: Vector<T, 3>, up: Vector<T, 3>) -> Result<Self, MatrixError>;
     fn ortho(size: Vector<T, 2>, near: T, far: T) -> Self;
-    fn projection(
-        fov: T,
-        aspect: T,
-        near_plane: T,
-        far_plane: T,
-    ) -> Result<Self, MatrixError>;
+    fn projection(fov: T, aspect: T, near_plane: T, far_plane: T) -> Result<Self, MatrixError>;
 }
 
 impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
@@ -589,33 +632,35 @@ impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
         )))
     }
 
-    fn view(from: Vector<f32, 3>, to: Vector<f32, 3>, up: Vector<f32, 3>) -> Result<Self, MatrixError> {
+    fn view(
+        from: Vector<f32, 3>,
+        to: Vector<f32, 3>,
+        up: Vector<f32, 3>,
+    ) -> Result<Self, MatrixError> {
         let zaxis = (from - to)
             .normalized()
             .map_err(|err| MatrixError::VectorError(err))?;
-        let xaxis = up.cross(&zaxis).normalized()
+        let xaxis = up
+            .cross(&zaxis)
+            .normalized()
             .map_err(|err| MatrixError::VectorError(err))?;
         let yaxis = zaxis.cross(&xaxis);
 
-        Ok(Self::new(
-            vector!(
-                vector!(xaxis[0], yaxis[0], zaxis[0], 0.0),
-                vector!(xaxis[1], yaxis[1], zaxis[1], 0.0),
-                vector!(xaxis[2], yaxis[2], zaxis[2], 0.0),
-                vector!(-xaxis.dot(&from), -yaxis.dot(&from), -zaxis.dot(&from), 1.0),
-            )
-        ))
+        Ok(Self::new(vector!(
+            vector!(xaxis[0], yaxis[0], zaxis[0], 0.0),
+            vector!(xaxis[1], yaxis[1], zaxis[1], 0.0),
+            vector!(xaxis[2], yaxis[2], zaxis[2], 0.0),
+            vector!(-xaxis.dot(&from), -yaxis.dot(&from), -zaxis.dot(&from), 1.0),
+        )))
     }
 
     fn ortho(size: Vector<f32, 2>, near: f32, far: f32) -> Self {
-        Self::new(
-            vector!(
-                vector!(2.0 / size[0], 0.0, 0.0, 0.0),
-                vector!(0.0, 2.0 / size[1], 0.0, 0.0),
-                vector!(0.0, 0.0, 1.0 / (near - far), 0.0),
-                vector!(0.0, 0.0, near / (near - far), 1.0),
-            )
-        )
+        Self::new(vector!(
+            vector!(2.0 / size[0], 0.0, 0.0, 0.0),
+            vector!(0.0, 2.0 / size[1], 0.0, 0.0),
+            vector!(0.0, 0.0, 1.0 / (near - far), 0.0),
+            vector!(0.0, 0.0, near / (near - far), 1.0),
+        ))
     }
 
     fn projection(
@@ -634,19 +679,17 @@ impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
         let y_scale = 1.0 / (fov * 0.5).tan();
         let x_scale = y_scale / aspect;
 
-        Ok(Self::new(
+        Ok(Self::new(vector!(
+            vector!(x_scale, 0.0, 0.0, 0.0),
+            vector!(0.0, y_scale, 0.0, 0.0),
+            vector!(0.0, 0.0, far_plane / (near_plane - far_plane), -1.0),
             vector!(
-                vector!(x_scale, 0.0, 0.0, 0.0),
-                vector!(0.0, y_scale, 0.0, 0.0),
-                vector!(0.0, 0.0, far_plane / (near_plane - far_plane), -1.0),
-                vector!(
-                    0.0,
-                    0.0,
-                    near_plane * far_plane / (near_plane - far_plane),
-                    0.0,
-                ),
+                0.0,
+                0.0,
+                near_plane * far_plane / (near_plane - far_plane),
+                0.0,
             ),
-        ))
+        )))
     }
 }
 

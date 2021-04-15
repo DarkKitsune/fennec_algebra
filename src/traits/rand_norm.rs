@@ -18,7 +18,7 @@ impl RandNorm for f64 {
     type SeedType = u64;
 
     fn rand_next(seed: &mut u64) -> Self {
-        u64::rand_next(seed) as f64  / (u64::MAX as f64)
+        u64::rand_next(seed) as f64 / (u64::MAX as f64)
     }
 }
 

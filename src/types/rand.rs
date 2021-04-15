@@ -6,9 +6,7 @@ pub struct Rand<T: RandNorm> {
 
 impl<T: RandNorm> Rand<T> {
     pub fn new(seed: T::SeedType) -> Self {
-        Self {
-            seed,
-        }
+        Self { seed }
     }
 
     pub fn next(&mut self) -> T {
