@@ -81,8 +81,8 @@ impl<T: Seed, const SIZE: usize> Seed for [T; SIZE] {
         let mut seed0 = 9437275731793346971;
         let mut seed1 = 12507178061862636611;
         for e in self.iter() {
-            seed0 = seed0 ^ (Wrapping(e.seed()) * Wrapping(12507178061862636611)).0;
-            seed1 = seed1 ^ (Wrapping(e.seed()) * Wrapping(9437275731793346971)).0;
+            seed0 ^= (Wrapping(e.seed()) * Wrapping(12507178061862636611)).0;
+            seed1 ^= (Wrapping(e.seed()) * Wrapping(9437275731793346971)).0;
         }
         seed0 << 32 | ((seed1 << 32) >> 32)
     }
@@ -93,8 +93,8 @@ impl<T: Seed> Seed for Vec<T> {
         let mut seed0 = 9437275731793346971;
         let mut seed1 = 12507178061862636611;
         for e in self.iter() {
-            seed0 = seed0 ^ (Wrapping(e.seed()) * Wrapping(12507178061862636611)).0;
-            seed1 = seed1 ^ (Wrapping(e.seed()) * Wrapping(9437275731793346971)).0;
+            seed0 ^= (Wrapping(e.seed()) * Wrapping(12507178061862636611)).0;
+            seed1 ^= (Wrapping(e.seed()) * Wrapping(9437275731793346971)).0;
         }
         seed0 << 32 | ((seed1 << 32) >> 32)
     }

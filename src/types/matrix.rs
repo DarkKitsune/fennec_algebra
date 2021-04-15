@@ -48,12 +48,10 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
                     let new_column = init_array!([T; ROWS], |r_idx| if r_idx < R {
                         let v: &T = &column[r_idx];
                         v.clone()
+                    } else if r_idx == idx {
+                        T::one()
                     } else {
-                        if r_idx == idx {
-                            T::one()
-                        } else {
-                            T::zero()
-                        }
+                        T::zero()
                     });
                     Vector::new(new_column)
                 } else {
@@ -249,15 +247,15 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
         }
         self.columns[0] = self.columns[0]
             .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?
+            .map_err(MatrixError::VectorError)?
             * scale[0].clone();
         self.columns[1] = self.columns[1]
             .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?
+            .map_err(MatrixError::VectorError)?
             * scale[1].clone();
         self.columns[2] = self.columns[2]
             .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?
+            .map_err(MatrixError::VectorError)?
             * scale[2].clone();
         Ok(())
     }
@@ -273,15 +271,9 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
             return Err(MatrixError::TooFewColumns);
         }
         Ok(vector!(
-            self.columns[0]
-                .length()
-                .map_err(|err| MatrixError::VectorError(err))?,
-            self.columns[1]
-                .length()
-                .map_err(|err| MatrixError::VectorError(err))?,
-            self.columns[2]
-                .length()
-                .map_err(|err| MatrixError::VectorError(err))?,
+            self.columns[0].length().map_err(MatrixError::VectorError)?,
+            self.columns[1].length().map_err(MatrixError::VectorError)?,
+            self.columns[2].length().map_err(MatrixError::VectorError)?,
         ))
     }
 
@@ -376,9 +368,8 @@ impl<T: Sized, const COLUMNS: usize, const ROWS: usize> Matrix<T, COLUMNS, ROWS>
     where
         T: Mul<T, Output = T> + Clone + Sum + Default + One,
     {
-        let mut a = self.clone();
         let b = Matrix::new_position(point)?;
-        Ok(a.mul_matrix(&b).position()?)
+        self.mul_matrix(&b).position()
     }
 
     pub fn transposed(&self) -> Result<Self, MatrixError>
@@ -606,7 +597,7 @@ impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
     fn new_rotation_on_axis(axis: Vector<f32, 3>, radians: f32) -> Result<Self, MatrixError> {
         let axis = axis
             .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?;
+            .map_err(MatrixError::VectorError)?;
         let (sin, cos) = (-radians).sin_cos();
         let t = 1.0 - cos;
         Ok(Matrix::new(vector!(
@@ -637,13 +628,11 @@ impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
         to: Vector<f32, 3>,
         up: Vector<f32, 3>,
     ) -> Result<Self, MatrixError> {
-        let zaxis = (from - to)
-            .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?;
+        let zaxis = (from - to).normalized().map_err(MatrixError::VectorError)?;
         let xaxis = up
             .cross(&zaxis)
             .normalized()
-            .map_err(|err| MatrixError::VectorError(err))?;
+            .map_err(MatrixError::VectorError)?;
         let yaxis = zaxis.cross(&xaxis);
 
         Ok(Self::new(vector!(
@@ -690,6 +679,12 @@ impl TransformMatrix<f32> for Matrix<f32, 4, 4> {
                 0.0,
             ),
         )))
+    }
+}
+
+impl From<Quaternion> for Matrix<f32, 4, 4> {
+    fn from(q: Quaternion) -> Self {
+        Self::new_rotation(&q).unwrap()
     }
 }
 

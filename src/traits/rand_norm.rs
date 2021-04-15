@@ -9,7 +9,7 @@ impl RandNorm for f32 {
     type SeedType = u64;
 
     fn rand_next(seed: &mut u64) -> Self {
-        *seed = (Wrapping(2074984187 as u64) * Wrapping(*seed) + Wrapping(2881137594 as u64)).0;
+        *seed = (Wrapping(2074984187u64) * Wrapping(*seed) + Wrapping(2881137594)).0;
         (*seed >> 32) as f32 / (u32::MAX as f32)
     }
 }
@@ -26,7 +26,7 @@ impl RandNorm for i32 {
     type SeedType = u64;
 
     fn rand_next(seed: &mut u64) -> Self {
-        *seed = (Wrapping(2074984187 as u64) * Wrapping(*seed) + Wrapping(2881137594 as u64)).0;
+        *seed = (Wrapping(2074984187u64) * Wrapping(*seed) + Wrapping(2881137594)).0;
         (*seed >> 32) as i32
     }
 }
@@ -35,7 +35,7 @@ impl RandNorm for u32 {
     type SeedType = u64;
 
     fn rand_next(seed: &mut u64) -> Self {
-        *seed = (Wrapping(2074984187 as u64) * Wrapping(*seed) + Wrapping(2881137594 as u64)).0;
+        *seed = (Wrapping(2074984187u64) * Wrapping(*seed) + Wrapping(2881137594)).0;
         (*seed >> 32) as u32
     }
 }

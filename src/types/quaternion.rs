@@ -226,18 +226,6 @@ impl std::ops::Neg for Quaternion {
     }
 }
 
-impl Into<Matrix<f32, 4, 4>> for Quaternion {
-    fn into(self) -> Matrix<f32, 4, 4> {
-        Matrix::new_rotation(&self).unwrap()
-    }
-}
-
-impl Into<Matrix<f32, 4, 4>> for &Quaternion {
-    fn into(self) -> Matrix<f32, 4, 4> {
-        Matrix::new_rotation(self).unwrap()
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Hash)]
 pub enum QuaternionError {
     ZeroLength,
